@@ -4,12 +4,12 @@
 resource "aws_launch_template" "this" {
   count = var.create_lc ? 1 : 0
 
-  name_prefix      = "${coalesce(var.lc_name, var.name)}-"
-  image_id         = var.image_id
-  instance_type    = ""
-  key_name         = var.key_name
-  user_data        = base64encode(var.user_data)
-  ebs_optimized    = var.ebs_optimized
+  name_prefix   = "${coalesce(var.lc_name, var.name)}-"
+  image_id      = var.image_id
+  instance_type = ""
+  key_name      = var.key_name
+  user_data     = base64encode(var.user_data)
+  ebs_optimized = var.ebs_optimized
 
   iam_instance_profile {
     name = var.iam_instance_profile
