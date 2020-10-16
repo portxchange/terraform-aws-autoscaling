@@ -8,8 +8,7 @@ resource "aws_launch_template" "this" {
   image_id         = var.image_id
   instance_type    = ""
   key_name         = var.key_name
-  user_data        = var.user_data
-  user_data_base64 = var.user_data_base64
+  user_data        = base64encode(var.user_data)
   ebs_optimized    = var.ebs_optimized
 
   iam_instance_profile {
