@@ -4,50 +4,53 @@
 resource "aws_launch_template" "this" {
   count = var.create_lc ? 1 : 0
 
-  name_prefix                 = "${coalesce(var.lc_name, var.name)}-"
-  image_id                    = var.image_id
-  instance_type               = var.instance_type
-  iam_instance_profile        = var.iam_instance_profile
-  key_name                    = var.key_name
-  security_groups             = var.security_groups
-  associate_public_ip_address = var.associate_public_ip_address
-  user_data                   = var.user_data
-  user_data_base64            = var.user_data_base64
-  enable_monitoring           = var.enable_monitoring
-  spot_price                  = var.spot_price
-  placement_tenancy           = var.spot_price == "" ? var.placement_tenancy : ""
-  ebs_optimized               = var.ebs_optimized
+  name_prefix      = "${coalesce(var.lc_name, var.name)}-"
+  image_id         = var.image_id
+  instance_type    = ""
+  key_name         = var.key_name
+  user_data        = var.user_data
+  user_data_base64 = var.user_data_base64
+  ebs_optimized    = var.ebs_optimized
 
-  dynamic "ebs_block_device" {
-    for_each = var.ebs_block_device
-    content {
-      delete_on_termination = lookup(ebs_block_device.value, "delete_on_termination", null)
-      device_name           = ebs_block_device.value.device_name
-      encrypted             = lookup(ebs_block_device.value, "encrypted", null)
-      iops                  = lookup(ebs_block_device.value, "iops", null)
-      no_device             = lookup(ebs_block_device.value, "no_device", null)
-      snapshot_id           = lookup(ebs_block_device.value, "snapshot_id", null)
-      volume_size           = lookup(ebs_block_device.value, "volume_size", null)
-      volume_type           = lookup(ebs_block_device.value, "volume_type", null)
-    }
+  iam_instance_profile {
+    name = var.iam_instance_profile
   }
 
-  dynamic "ephemeral_block_device" {
-    for_each = var.ephemeral_block_device
-    content {
-      device_name  = ephemeral_block_device.value.device_name
-      virtual_name = ephemeral_block_device.value.virtual_name
-    }
+  monitoring {
+    enabled = var.enable_monitoring
   }
 
-  dynamic "root_block_device" {
-    for_each = var.root_block_device
+  placement {
+    tenancy = var.placement_tenancy
+  }
+
+  network_interfaces {
+    description                 = coalesce(var.lc_name, var.name)
+    device_index                = 0
+    associate_public_ip_address = var.associate_public_ip_address
+    delete_on_termination       = true
+    security_groups             = var.security_groups
+  }
+
+  dynamic "block_device_mappings" {
+    for_each = var.block_device_mappings
     content {
-      delete_on_termination = lookup(root_block_device.value, "delete_on_termination", null)
-      iops                  = lookup(root_block_device.value, "iops", null)
-      volume_size           = lookup(root_block_device.value, "volume_size", null)
-      volume_type           = lookup(root_block_device.value, "volume_type", null)
-      encrypted             = lookup(root_block_device.value, "encrypted", null)
+      device_name  = lookup(block_device_mappings.value, "device_name", null)
+      no_device    = lookup(block_device_mappings.value, "no_device", null)
+      virtual_name = lookup(block_device_mappings.value, "virtual_name", null)
+
+      dynamic "ebs" {
+        for_each = lookup(block_device_mappings.value, "ebs", [])
+        content {
+          delete_on_termination = lookup(ebs.value, "delete_on_termination", null)
+          encrypted             = lookup(ebs.value, "encrypted", null)
+          iops                  = lookup(ebs.value, "iops", null)
+          kms_key_id            = lookup(ebs.value, "kms_key_id", null)
+          snapshot_id           = lookup(ebs.value, "snapshot_id", null)
+          volume_size           = lookup(ebs.value, "volume_size", null)
+          volume_type           = lookup(ebs.value, "volume_type", null)
+        }
+      }
     }
   }
 
@@ -71,11 +74,10 @@ resource "aws_autoscaling_group" "this" {
       ],
     ),
   )}-"
-  launch_configuration = var.create_lc ? element(concat(aws_launch_template.this.*.name, [""]), 0) : var.launch_configuration
-  vpc_zone_identifier  = var.vpc_zone_identifier
-  max_size             = var.max_size
-  min_size             = var.min_size
-  desired_capacity     = var.desired_capacity
+  vpc_zone_identifier = var.vpc_zone_identifier
+  max_size            = var.max_size
+  min_size            = var.min_size
+  desired_capacity    = var.desired_capacity
 
   load_balancers            = var.load_balancers
   health_check_grace_period = var.health_check_grace_period
@@ -150,11 +152,11 @@ resource "aws_autoscaling_group" "this_with_initial_lifecycle_hook" {
       ],
     ),
   )}-"
-  launch_configuration = var.create_lc ? element(aws_launch_template.this.*.name, 0) : var.launch_configuration
-  vpc_zone_identifier  = var.vpc_zone_identifier
-  max_size             = var.max_size
-  min_size             = var.min_size
-  desired_capacity     = var.desired_capacity
+
+  vpc_zone_identifier = var.vpc_zone_identifier
+  max_size            = var.max_size
+  min_size            = var.min_size
+  desired_capacity    = var.desired_capacity
 
   load_balancers            = var.load_balancers
   health_check_grace_period = var.health_check_grace_period
@@ -173,6 +175,31 @@ resource "aws_autoscaling_group" "this_with_initial_lifecycle_hook" {
   wait_for_capacity_timeout = var.wait_for_capacity_timeout
   protect_from_scale_in     = var.protect_from_scale_in
   service_linked_role_arn   = var.service_linked_role_arn
+
+  mixed_instances_policy {
+    launch_template {
+      launch_template_specification {
+        launch_template_id = var.create_lc ? element(concat(aws_launch_template.this.*.id, [""]), 0) : var.launch_template
+        version            = "$Latest"
+      }
+
+      dynamic "override" {
+        for_each = var.instance_types
+        content {
+          instance_type     = lookup(override.value, "instance_type", null)
+          weighted_capacity = lookup(override.value, "weighted_capacity", null)
+        }
+      }
+    }
+
+    instances_distribution {
+      on_demand_base_capacity                  = var.on_demand_base_capacity
+      on_demand_percentage_above_base_capacity = var.on_demand_percentage_above_base_capacity
+      spot_allocation_strategy                 = var.spot_allocation_strategy
+      spot_instance_pools                      = var.spot_allocation_strategy == "lowest-price" ? var.spot_instance_pools : null
+      spot_max_price                           = var.spot_price
+    }
+  }
 
   initial_lifecycle_hook {
     name                    = var.initial_lifecycle_hook_name

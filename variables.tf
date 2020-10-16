@@ -356,3 +356,9 @@ variable "spot_instance_pools" {
   type        = number
   default     = 2
 }
+
+variable "block_device_mappings" {
+  description = "Mappings of block devices, see https://www.terraform.io/docs/providers/aws/r/launch_template.html#block-devices"
+  type        = list(any)
+  default     = [{}]
+}
