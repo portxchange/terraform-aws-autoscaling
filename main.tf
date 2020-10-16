@@ -1,7 +1,7 @@
 #######################
 # Launch configuration
 #######################
-resource "aws_launch_configuration" "this" {
+resource "aws_launch_template" "this" {
   count = var.create_lc ? 1 : 0
 
   name_prefix                 = "${coalesce(var.lc_name, var.name)}-"
@@ -71,7 +71,7 @@ resource "aws_autoscaling_group" "this" {
       ],
     ),
   )}-"
-  launch_configuration = var.create_lc ? element(concat(aws_launch_configuration.this.*.name, [""]), 0) : var.launch_configuration
+  launch_configuration = var.create_lc ? element(concat(aws_launch_template.this.*.name, [""]), 0) : var.launch_configuration
   vpc_zone_identifier  = var.vpc_zone_identifier
   max_size             = var.max_size
   min_size             = var.min_size
@@ -95,6 +95,31 @@ resource "aws_autoscaling_group" "this" {
   protect_from_scale_in     = var.protect_from_scale_in
   service_linked_role_arn   = var.service_linked_role_arn
   max_instance_lifetime     = var.max_instance_lifetime
+
+  mixed_instances_policy {
+    launch_template {
+      launch_template_specification {
+        launch_template_id = var.create_lc ? element(concat(aws_launch_template.this.*.id, [""]), 0) : var.launch_template
+        version            = "$Latest"
+      }
+
+      dynamic "override" {
+        for_each = var.instance_types
+        content {
+          instance_type     = lookup(override.value, "instance_type", null)
+          weighted_capacity = lookup(override.value, "weighted_capacity", null)
+        }
+      }
+    }
+
+    instances_distribution {
+      on_demand_base_capacity                  = var.on_demand_base_capacity
+      on_demand_percentage_above_base_capacity = var.on_demand_percentage_above_base_capacity
+      spot_allocation_strategy                 = var.spot_allocation_strategy
+      spot_instance_pools                      = var.spot_allocation_strategy == "lowest-price" ? var.spot_instance_pools : null
+      spot_max_price                           = var.spot_price
+    }
+  }
 
   dynamic "tag" {
     for_each = local.tags
@@ -125,7 +150,7 @@ resource "aws_autoscaling_group" "this_with_initial_lifecycle_hook" {
       ],
     ),
   )}-"
-  launch_configuration = var.create_lc ? element(aws_launch_configuration.this.*.name, 0) : var.launch_configuration
+  launch_configuration = var.create_lc ? element(aws_launch_template.this.*.name, 0) : var.launch_configuration
   vpc_zone_identifier  = var.vpc_zone_identifier
   max_size             = var.max_size
   min_size             = var.min_size
@@ -181,6 +206,6 @@ resource "random_pet" "asg_name" {
 
   keepers = {
     # Generate a new pet name each time we switch launch configuration
-    lc_name = var.create_lc ? element(concat(aws_launch_configuration.this.*.name, [""]), 0) : var.launch_configuration
+    lc_name = var.create_lc ? element(concat(aws_launch_template.this.*.name, [""]), 0) : var.launch_configuration
   }
 }
