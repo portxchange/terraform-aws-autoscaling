@@ -134,6 +134,8 @@ resource "aws_autoscaling_group" "this" {
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [aws_launch_template.this]
 }
 
 ################################################
@@ -234,4 +236,6 @@ resource "random_pet" "asg_name" {
     # Generate a new pet name each time we switch launch configuration
     lc_name = var.create_lc ? element(concat(aws_launch_template.this.*.name, [""]), 0) : var.launch_configuration
   }
+
+  depends_on = [aws_launch_template.this]
 }
