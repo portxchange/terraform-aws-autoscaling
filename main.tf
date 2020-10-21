@@ -295,8 +295,6 @@ resource "random_pet" "asg_new_name" {
     lc_name = var.create_lc ? element(concat(aws_launch_template.this.*.name, [""]), 0) : var.launch_configuration
   }
 
-  depends_on = [aws_launch_template.this]
-
   lifecycle {
     create_before_destroy = true
   }
