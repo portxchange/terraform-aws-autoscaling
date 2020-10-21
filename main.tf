@@ -69,7 +69,7 @@ resource "aws_autoscaling_group" "this" {
     compact(
       [
         coalesce(var.asg_name, var.name),
-        var.recreate_asg_when_lc_changes ? element(concat(random_pet.asg_name.*.id, [""]), 0) : "",
+        var.recreate_asg_when_lc_changes ? element(concat(random_pet.asg_new_name.*.id, [""]), 0) : "",
       ],
     ),
   )}-"
@@ -149,7 +149,7 @@ resource "aws_autoscaling_group" "this_with_initial_lifecycle_hook" {
     compact(
       [
         coalesce(var.asg_name, var.name),
-        var.recreate_asg_when_lc_changes ? element(concat(random_pet.asg_name.*.id, [""]), 0) : "",
+        var.recreate_asg_when_lc_changes ? element(concat(random_pet.asg_new_name.*.id, [""]), 0) : "",
       ],
     ),
   )}-"
@@ -226,7 +226,7 @@ resource "aws_autoscaling_group" "this_with_initial_lifecycle_hook" {
   }
 }
 
-resource "random_pet" "asg_name" {
+resource "random_pet" "asg_new_name" {
   count = var.recreate_asg_when_lc_changes ? 1 : 0
 
   separator = "-"
