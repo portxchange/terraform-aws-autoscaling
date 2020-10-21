@@ -238,4 +238,8 @@ resource "random_pet" "asg_name" {
   }
 
   depends_on = [aws_launch_template.this]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
