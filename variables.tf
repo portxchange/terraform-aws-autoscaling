@@ -321,3 +321,44 @@ variable "max_instance_lifetime" {
   default     = 0
 }
 
+variable "instance_types" {
+  description = "Instance types to launch, minimum 2 types must be specified. List of Map of 'instance_type'(required) and 'weighted_capacity'(optional)."
+  type        = list(map(any))
+  default     = [{}]
+}
+
+variable "launch_template" {
+  description = "The name of the launch template to use (if it is created outside of this module)"
+  type        = string
+  default     = ""
+}
+
+variable "on_demand_base_capacity" {
+  description = "Absolute minimum amount of desired capacity that must be fulfilled by on-demand instances"
+  type        = number
+  default     = 0
+}
+
+variable "on_demand_percentage_above_base_capacity" {
+  description = "Percentage split between on-demand and Spot instances above the base on-demand capacity."
+  type        = number
+  default     = 100
+}
+
+variable "spot_allocation_strategy" {
+  description = "How to allocate capacity across the Spot pools. Valid values: 'lowest-price', 'capacity-optimized'."
+  type        = string
+  default     = "capacity-optimized"
+}
+
+variable "spot_instance_pools" {
+  description = "Number of Spot pools per availability zone to allocate capacity. EC2 Auto Scaling selects the cheapest Spot pools and evenly allocates Spot capacity across the number of Spot pools that you specify. Diversifies your Spot capacity across multiple instance types to find the best pricing."
+  type        = number
+  default     = 2
+}
+
+variable "block_device_mappings" {
+  description = "Mappings of block devices, see https://www.terraform.io/docs/providers/aws/r/launch_template.html#block-devices"
+  type        = list(any)
+  default     = [{}]
+}
